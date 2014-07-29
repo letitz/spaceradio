@@ -6,18 +6,18 @@ function statusChangeCallback(response) {
     // for FB.getLoginStatus().
     if (response.status === 'connected') {
         // Logged into your app and Facebook.
-        $("#fblogin").addClass("displaynone");
+        $("#fbbutton").hide();
         FB.api('/me', function (response) {
             checkPermissionsById(response.id, facebookOk);
         });
     } else if (response.status === 'not_authorized') {
         // The person is logged into Facebook, but not your app.
-        $("#fblogin").removeClass("displaynone");
+        $("#fbbutton").show();
         $('#fbstatus').html('Please log into this app:');
     } else {
         // The person is not logged into Facebook, so we're not sure if
         // they are logged into this app or not.
-        $("#fblogin").removeClass("displaynone");
+        $("#fbbutton").show();
         $('#fbstatus').html('Please log into Facebook:');
     }
 }
@@ -26,6 +26,7 @@ function statusChangeCallback(response) {
 // Button.  See the onlogin handler attached to it in the sample
 // code below.
 function checkLoginState() {
+    $("#fbstatus").html('Logging into Facebook...');
     FB.getLoginStatus(function(response) {
         statusChangeCallback(response);
     });
@@ -40,22 +41,7 @@ window.fbAsyncInit = function() {
         version    : 'v2.0' // use version 2.0
     });
 
-    // Now that we've initialized the JavaScript SDK, we call 
-    // FB.getLoginStatus().  This function gets the state of the
-    // person visiting this page and can return one of three states to
-    // the callback you provide.  They can be:
-    //
-    // 1. Logged into your app ('connected')
-    // 2. Logged into Facebook, but not your app ('not_authorized')
-    // 3. Not logged into Facebook and can't tell if they are logged into
-    //    your app or not.
-    //
-    // These three cases are handled in the callback function.
-
-    FB.getLoginStatus(function(response) {
-        statusChangeCallback(response);
-    });
-
+    checkLoginState();
 };
 
 // Load the SDK asynchronously
@@ -68,11 +54,11 @@ window.fbAsyncInit = function() {
 }(document, 'script', 'facebook-jssdk'));
 
 function checkPermissionsById(user_id, success) {
+    $("#fbstatus").html("Checking Facebook permissions...");
     FB.api('/' + user_id + '/permissions', function (response) {
 
         var groups_granted = false;
         $.each(response.data, function (i, val) {
-            console.log(val);
             if (val.permission === 'user_groups' &&
                     val.status === 'granted')
                 groups_granted = true;
@@ -80,15 +66,18 @@ function checkPermissionsById(user_id, success) {
         if (groups_granted)
             success();
         else
+        {
             $('#fbstatus').html('You have not granted SpaceRadio the ' +
                     'permission to see your groups. Please log out of ' +
                     'Facebook and try again.');
+            $("#fbbutton").show();
+        }
     });
 }
 
 function facebookOk() {
-    $("#fbloginbutton").addClass("displaynone");
-    $("#choosegroup").removeClass("displaynone");
+    $("#fblogin").hide();
+    $("#choosegroup").show();
 }
 
 var groups = [];
