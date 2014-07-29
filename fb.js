@@ -1,21 +1,24 @@
 // This is called with the results from from FB.getLoginStatus().
 function statusChangeCallback(response) {
-    console.log('statusChangeCallback');
-    console.log(response);
     // The response object is returned with a status field that lets the
     // app know the current login status of the person.
     // Full docs on the response object can be found in the documentation
     // for FB.getLoginStatus().
     if (response.status === 'connected') {
         // Logged into your app and Facebook.
-        testAPI();
+        $("#fblogin").addClass("displaynone");
+        FB.api('/me', function (response) {
+            checkPermissionsById(response.id, facebookOk);
+        });
     } else if (response.status === 'not_authorized') {
         // The person is logged into Facebook, but not your app.
-        $('#status').html('Please log into this app.');
+        $("#fblogin").removeClass("displaynone");
+        $('#fbstatus').html('Please log into this app:');
     } else {
         // The person is not logged into Facebook, so we're not sure if
         // they are logged into this app or not.
-        $('#status').html('Please log into Facebook.';
+        $("#fblogin").removeClass("displaynone");
+        $('#fbstatus').html('Please log into Facebook:');
     }
 }
 
@@ -64,14 +67,65 @@ window.fbAsyncInit = function() {
     fjs.parentNode.insertBefore(js, fjs);
 }(document, 'script', 'facebook-jssdk'));
 
-// Here we run a very simple test of the Graph API after login is
-// successful.  See statusChangeCallback() for when this call is made.
-function testAPI() {
-    console.log('Welcome!  Fetching your information.... ');
-    FB.api('/me', function(response) {
-        console.log('Successful login for: ' + response.name);
-        $('#status').html(
-            'Thanks for logging in, ' + response.name + '!');
+function checkPermissionsById(user_id, success) {
+    FB.api('/' + user_id + '/permissions', function (response) {
+
+        var groups_granted = false;
+        $.each(response.data, function (i, val) {
+            console.log(val);
+            if (val.permission === 'user_groups' &&
+                    val.status === 'granted')
+                groups_granted = true;
+        });
+        if (groups_granted)
+            success();
+        else
+            $('#fbstatus').html('You have not granted SpaceRadio the ' +
+                    'permission to see your groups. Please log out of ' +
+                    'Facebook and try again.');
     });
 }
 
+function facebookOk() {
+    $("#fbloginbutton").addClass("displaynone");
+    $("#choosegroup").removeClass("displaynone");
+}
+
+var groups = [];
+
+function findGroup() {
+    var group_name = $("#groupname").val();
+    var group_status = $("#groupstatus");
+    var group_results = $("#groupresults");
+    group_status.html("Searching for \"" + group_name + "\"");
+    group_results.html("");
+    if (groups.length != 0)
+        filterGroups(groups, group_name);
+    else
+        FB.api('/me/groups', function (response) {
+            groups = response.data;
+            filterGroups(response.data, group_name);
+        });
+}
+
+function filterGroups(group_list, group_name) {
+    var found = false;
+    var group_results = $("#groupresults");
+    var group_status = $("#groupstatus");
+    $.each(group_list, function (i,val) {
+        if (val.name.indexOf(group_name) >= 0) {
+            var link = $("<a/>", { text: val.name, 
+                href: "javascript:processGroupFeed(" + val.id + ")"
+            });
+            link.appendTo(group_results).wrap("<li>");
+            found = true;
+        }
+    });
+    if (!found)
+        group_status.html("No result for \"" + group_name + "\"");
+}
+
+
+function processGroupFeed(group_id) {
+    console.log("Processing group " + group_id);
+}

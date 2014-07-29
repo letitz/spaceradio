@@ -5,6 +5,7 @@
         <meta charset="UTF-8">
     </head>
     <body>
+        <link rel="stylesheet" type="text/css" href="style.css">
         <script id="jquery" src="http://code.jquery.com/jquery-2.1.1.min.js">
         </script>
         <script id="fbscript" src="fb.js">
@@ -15,10 +16,20 @@
             the JavaScript SDK to present a graphical Login button that triggers
             the FB.login() function when clicked.
         -->
-        <fb:login-button scope="public_profile,email" onlogin="checkLoginState();">
-        </fb:login-button>
+        <div id="fblogin" class="displaynone">
+            <div id="fbstatus">
+            </div>
+            <fb:login-button scope="public_profile, user_groups" onlogin="checkLoginState();">
+            </fb:login-button>
+        </div>
 
-        <div id="status">
+        <div id="choosegroup" class="displaynone">
+            <label for="groupname">Facebook group to use:</label>
+            <input type="text" id="groupname" name="groupname" oninput="findGroup()">
+            <div id="groupstatus">
+            </div>
+            <ul id="groupresults">
+            </ul>
         </div>
 
     </body>
