@@ -41,6 +41,7 @@ window.fbAsyncInit = function() {
         version    : 'v2.0' // use version 2.0
     });
 
+    $("#fbbutton").click(checkLoginState);
     checkLoginState();
 };
 
@@ -78,6 +79,8 @@ function checkPermissionsById(user_id, success) {
 function facebookOk() {
     $("#fblogin").hide();
     $("#choosegroup").show();
+    $("#groupname").on("input", findGroup);
+    findGroup();
 }
 
 var groups = [];
@@ -103,8 +106,10 @@ function filterGroups(group_list, group_name) {
     var group_status = $("#groupstatus");
     $.each(group_list, function (i,val) {
         if (val.name.indexOf(group_name) >= 0) {
-            var link = $("<a/>", { text: val.name, 
-                href: "javascript:processGroupFeed(" + val.id + ")"
+            var link = $("<a/>", {
+                text: val.name,
+                click: function () { processGroupFeed(val.id); },
+                href: "#"
             });
             link.appendTo(group_results).wrap("<li>");
             found = true;
@@ -117,4 +122,21 @@ function filterGroups(group_list, group_name) {
 
 function processGroupFeed(group_id) {
     console.log("Processing group " + group_id);
+    $("#choosegroup").hide();
+    $("#feedvideos").show();
+    FB.api(group_id + "/feed", extractYoutube);
+    return false;
+}
+
+ytregex = new RegExp("youtube.com", "g");
+
+function extractYoutube(response) {
+    for (var i = 0; i < response.data.length; i++) {
+        var post = response.data[i];
+        var matches = post.message.match(ytregex);
+        for (var j = 0; matches && j < matches.length; j++) {
+            console.log(matches[j]);
+        }
+    }
+    console.log(response.paging.next);
 }

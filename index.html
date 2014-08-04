@@ -19,16 +19,21 @@
         <div id="fblogin">
             <div id="fbstatus">
             </div>
-            <fb:login-button id="fbbutton" scope="public_profile, user_groups" onlogin="checkLoginState();">
+            <fb:login-button id="fbbutton" scope="public_profile, user_groups">
             </fb:login-button>
         </div>
 
         <div id="choosegroup" class="displaynone">
             <label for="groupname">Facebook group to use:</label>
-            <input type="text" id="groupname" name="groupname" oninput="findGroup()">
+            <input type="text" id="groupname" name="groupname">
             <div id="groupstatus">
             </div>
             <ul id="groupresults">
+            </ul>
+        </div>
+
+        <div id="feedvideos" class="displaynone">
+            <ul id="videolist">
             </ul>
         </div>
 
