@@ -257,8 +257,8 @@ function showYoutubeLinks(items, total) {
     videolist = $("#videolist");
     videolist.detach();
     for (var i = 0; i < items.length; i++) {
-        var link = "http://youtu.be/" + items[i].id;
-        videolist.append("<li><a href=\"" + link + "\">" + items[i].snippet.title + "</a></li>");
+        videolist.append("<li><a href=\"http://youtu.be/" + items[i].id + "\">" + 
+                items[i].snippet.title + "</a></li>");
     }
     videolist.appendTo("#feedvideos");
 }
