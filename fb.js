@@ -8,7 +8,9 @@ var YOUTUBE_LOADED = false;
 
 function handleYoutubeLoad() {
     gapi.client.setApiKey(YOUTUBE_API_KEY);
-    YOUTUBE_LOADED = true;
+    gapi.client.load("youtube", "v3", function(){
+        YOUTUBE_LOADED = true;
+    });
 }
 
 /* --------------- */
@@ -196,13 +198,27 @@ function extractYoutube(response, links, pageNum) {
             extractYoutube(response, links, pageNum+1);
         });
     } else {
+        $("#feedstatus").text("Found " + links.length +
+                " links to youtube videos:");
         processLinks(links);
     }
 }
 
+
+/* ---------------------------------------- */
+/*  Retrieve video information and display  */
+/* ---------------------------------------- */
+
 function processLinks(links) {
-    $("#feedstatus").text("Found " + links.length + " videos");
-    $("#feedstatuspage").hide();
+    if (YOUTUBE_LOADED) {
+        getYoutubeInfo(links, 0, 25, []);
+    } else {
+        showLinks(links);
+    }
+}
+
+function showLinks(links) {
+    $("#feedstatuspage").text("Could not retrieve video information from youtube");
     videolist = $("#videolist");
     videolist.detach();
     for (var i = 0; i < links.length; i++) {
@@ -212,11 +228,37 @@ function processLinks(links) {
     videolist.appendTo("#feedvideos");
 }
 
-/* ---------------------------------------- */
-/*  Retrieve video information and display  */
-/* ---------------------------------------- */
+function getYoutubeInfo(links, i, step, items) {
+    var end = Math.min(i + step, links.length);
+    $("#feedstatuspage").text("Getting video information for videos " + i + 
+            " to " + end + "...");
+    var request = gapi.client.youtube.videos.list({
+        "part": "id,snippet",
+        "id": links.slice(i, end).join()
+    });
+    
+    request.execute(function(response) {
+        if (response.hasOwnProperty("items")) {
+            for (var j = 0; j < response.items.length; j++) {
+                items.push(response.items[j]);
+            }
+        }
+        if (end < links.length) {
+            getYoutubeInfo(links, end, step, items);
+        } else {
+            showYoutubeLinks(items, links.length);
+        }
+    });
+}
 
-function getVideoInfo(link)
-{
-    return;
+function showYoutubeLinks(items, total) {
+    $("#feedstatuspage").hide();
+    $("#feedstatus").text("Found " + items.length + "/" + total + " videos on youtube:");
+    videolist = $("#videolist");
+    videolist.detach();
+    for (var i = 0; i < items.length; i++) {
+        var link = "http://youtu.be/" + items[i].id;
+        videolist.append("<li><a href=\"" + link + "\">" + items[i].snippet.title + "</a></li>");
+    }
+    videolist.appendTo("#feedvideos");
 }
