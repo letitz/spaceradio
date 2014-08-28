@@ -1,3 +1,55 @@
+/* -------------- */
+/*  Youtube init  */
+/* -------------- */
+
+var YOUTUBE_API_KEY = "AIzaSyD1XMItkVAhnWjukgcJszeOjgYfHBDhchk";
+
+var YOUTUBE_LOADED = false;
+
+function handleYoutubeLoad() {
+    gapi.client.setApiKey(YOUTUBE_API_KEY);
+    YOUTUBE_LOADED = true;
+}
+
+/* --------------- */
+/*  Facebook init  */
+/* --------------- */
+
+// Load the Facebook SDK asynchronously
+(function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "//connect.facebook.net/en_US/sdk.js";
+    fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));
+
+// Called once the Facebook SDK has loaded
+window.fbAsyncInit = function() {
+    FB.init({
+        appId      : '1456420244613043',
+        cookie     : true,  // enable cookies to allow the server to access 
+        // the session
+        xfbml      : true,  // parse social plugins on this page
+        version    : 'v2.0' // use version 2.0
+    });
+
+    $("#loading").hide();
+    $("#fblogin").show();
+    $("#fbbutton").click(checkLoginState);
+    checkLoginState();
+};
+
+// This function is called when someone finishes with the Login
+// Button.  See the onlogin handler attached to it in the sample
+// code below.
+function checkLoginState() {
+    $("#fbstatus").html('Logging into Facebook...');
+    FB.getLoginStatus(function(response) {
+        statusChangeCallback(response);
+    });
+}
+
 // This is called with the results from from FB.getLoginStatus().
 function statusChangeCallback(response) {
     // The response object is returned with a status field that lets the
@@ -8,7 +60,7 @@ function statusChangeCallback(response) {
         // Logged into your app and Facebook.
         $("#fbbutton").hide();
         FB.api('/me', function (response) {
-            checkPermissionsById(response.id, facebookOk);
+            checkPermissionsById(response.id);
         });
     } else if (response.status === 'not_authorized') {
         // The person is logged into Facebook, but not your app.
@@ -22,39 +74,7 @@ function statusChangeCallback(response) {
     }
 }
 
-// This function is called when someone finishes with the Login
-// Button.  See the onlogin handler attached to it in the sample
-// code below.
-function checkLoginState() {
-    $("#fbstatus").html('Logging into Facebook...');
-    FB.getLoginStatus(function(response) {
-        statusChangeCallback(response);
-    });
-}
-
-window.fbAsyncInit = function() {
-    FB.init({
-        appId      : '1456420244613043',
-        cookie     : true,  // enable cookies to allow the server to access 
-        // the session
-        xfbml      : true,  // parse social plugins on this page
-        version    : 'v2.0' // use version 2.0
-    });
-
-    $("#fbbutton").click(checkLoginState);
-    checkLoginState();
-};
-
-// Load the SDK asynchronously
-(function(d, s, id) {
-    var js, fjs = d.getElementsByTagName(s)[0];
-    if (d.getElementById(id)) return;
-    js = d.createElement(s); js.id = id;
-    js.src = "//connect.facebook.net/en_US/sdk.js";
-    fjs.parentNode.insertBefore(js, fjs);
-}(document, 'script', 'facebook-jssdk'));
-
-function checkPermissionsById(user_id, success) {
+function checkPermissionsById(user_id) {
     $("#fbstatus").html("Checking Facebook permissions...");
     FB.api('/' + user_id + '/permissions', function (response) {
 
@@ -65,7 +85,7 @@ function checkPermissionsById(user_id, success) {
                 groups_granted = true;
         });
         if (groups_granted)
-            success();
+            facebookOk();
         else
         {
             $('#fbstatus').html('You have not granted SpaceRadio the ' +
@@ -83,6 +103,11 @@ function facebookOk() {
     findGroup();
 }
 
+
+/* ------------------------------------------ */
+/*  Process facebook group and extract links  */
+/* ------------------------------------------ */
+
 var groups = [];
 
 function findGroup() {
@@ -94,7 +119,7 @@ function findGroup() {
     if (groups.length != 0)
         filterGroups(groups, group_name);
     else
-        FB.api('/me/groups', function (response) {
+        FB.api("/me/groups", function (response) {
             groups = response.data;
             filterGroups(response.data, group_name);
         });
@@ -104,11 +129,11 @@ function filterGroups(group_list, group_name) {
     var found = false;
     var group_results = $("#groupresults");
     var group_status = $("#groupstatus");
-    $.each(group_list, function (i,val) {
+    $.each(group_list, function(i,val) {
         if (val.name.indexOf(group_name) >= 0) {
             var link = $("<a/>", {
                 text: val.name,
-                click: function () { processGroupFeed(val.id); },
+                click: function () { processGroupFeed(val.name, val.id); },
                 href: "#"
             });
             link.appendTo(group_results).wrap("<li>");
@@ -119,24 +144,79 @@ function filterGroups(group_list, group_name) {
         group_status.html("No result for \"" + group_name + "\"");
 }
 
-
-function processGroupFeed(group_id) {
-    console.log("Processing group " + group_id);
+function processGroupFeed(group_name, group_id) {
     $("#choosegroup").hide();
     $("#feedvideos").show();
-    FB.api(group_id + "/feed", extractYoutube);
+    $("#feedstatus").text("Processing group \"" + group_name + "\"");
+    $("#feedstatuspage").text("Fetching page 1");
+    $("#feedstatus").show();
+    FB.api(group_id + "/feed", function (response) {
+        extractYoutube(response, [], 2);
+    });
     return false;
 }
 
-ytregex = new RegExp("youtube.com", "g");
+ytregex = {
+    expr: new RegExp("(youtube[.]com/watch[?]v=|youtu[.]be/)([a-zA-Z0-9_-]+)", "g"),
+    group: 2
+};
 
-function extractYoutube(response) {
+function addUnique(string, array) {
+    for (var i = 0; i < array.length; i++) {
+        if (string === array[i])
+            return;
+    }
+    array.push(string);
+}
+
+function matchRegex(string, regex, array) {
+    var match = regex.expr.exec(string);
+    while (match != null) {
+        if (match.length > regex.group)
+            addUnique(match[regex.group], array);
+        match = regex.expr.exec(string);
+    }
+}
+
+function extractYoutube(response, links, pageNum) {
     for (var i = 0; i < response.data.length; i++) {
         var post = response.data[i];
-        var matches = post.message.match(ytregex);
-        for (var j = 0; matches && j < matches.length; j++) {
-            console.log(matches[j]);
+        matchRegex(post.message, ytregex, links);
+        matchRegex(post.source, ytregex, links);
+        if (post.comments && post.comments.data)
+        {
+            $.each(post.comments.data, function (i, val) {
+                matchRegex(val.message, ytregex, links);
+            });
         }
     }
-    console.log(response.paging.next);
+    if (response.paging && response.paging.next) {
+        $("#feedstatuspage").text("Fetching page " + pageNum);
+        $.getJSON(response.paging.next, function (response) {
+            extractYoutube(response, links, pageNum+1);
+        });
+    } else {
+        processLinks(links);
+    }
+}
+
+function processLinks(links) {
+    $("#feedstatus").text("Found " + links.length + " videos");
+    $("#feedstatuspage").hide();
+    videolist = $("#videolist");
+    videolist.detach();
+    for (var i = 0; i < links.length; i++) {
+        var link = "http://youtu.be/" + links[i];
+        videolist.append("<li><a href=\"" + link + "\">" + link + "</a></li>");
+    }
+    videolist.appendTo("#feedvideos");
+}
+
+/* ---------------------------------------- */
+/*  Retrieve video information and display  */
+/* ---------------------------------------- */
+
+function getVideoInfo(link)
+{
+    return;
 }
